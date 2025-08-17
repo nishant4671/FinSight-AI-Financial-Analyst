@@ -1,7 +1,76 @@
 // backend/server.js
-const { PDFDocument, StandardFonts } = require('pdf-lib');
+require('dotenv').config();
+const express = require('express');
+const cors = require('cors');
+const axios = require('axios');
+const { GoogleGenerativeAI } = require('@google/generative-ai');
+const { PDFDocument, StandardFonts, rgb } = require('pdf-lib');
 const path = require('path');
-// Add this endpoint after your existing routes
+const { runPythonScript } = require('./pythonBridge');
+
+// Initialize Express application
+const app = express();
+const PORT = process.env.PORT || 5000;
+
+// Middleware setup
+app.use(cors({
+  origin: process.env.NODE_ENV === 'production' 
+    ? 'https://finsight-ai.onrender.com' 
+    : 'http://localhost:3000'
+}));
+app.use(express.json());
+
+// Initialize Google Gemini
+const genAI = process.env.GEMINI_API_KEY 
+  ? new GoogleGenerativeAI(process.env.GEMINI_API_KEY)
+  : null;
+
+// ==================== API ENDPOINTS ====================
+
+// Health check endpoint
+app.get('/api/health', (req, res) => {
+  res.status(200).json({ 
+    status: 'active', 
+    version: '1.0.0',
+    environment: process.env.NODE_ENV || 'development'
+  });
+});
+
+// Stock analysis endpoint
+app.post('/api/analyze', async (req, res) => {
+  const { symbol } = req.body;
+  
+  if (!symbol || typeof symbol !== 'string') {
+    return res.status(400).json({ error: 'Invalid symbol parameter' });
+  }
+  
+  try {
+    console.log(`🧠 Starting analysis for ${symbol}...`);
+    
+    // Execute Python analysis pipeline
+    const result = await runPythonScript(
+      '../data_processing/full_analysis.py',
+      [symbol]
+    );
+    
+    res.json({
+      status: 'success',
+      symbol,
+      forecastChart: result.forecast_chart,
+      sentiment: result.sentiment,
+      report: result.report
+    });
+    
+  } catch (error) {
+    console.error('🔥 Analysis failed:', error.message);
+    res.status(500).json({ 
+      error: 'Analysis failed', 
+      details: error.message 
+    });
+  }
+});
+
+// PDF export endpoint
 app.post('/api/export-pdf', async (req, res) => {
   try {
     const { title, content, author = "FinSight AI" } = req.body;
@@ -16,7 +85,7 @@ app.post('/api/export-pdf', async (req, res) => {
     const boldFont = await pdfDoc.embedFont(StandardFonts.HelveticaBold);
     
     // Add title
-    page.drawText(title, {
+    page.drawText(title || 'Financial Analysis Report', {
       x: 50,
       y: height - 50,
       size: 18,
@@ -55,7 +124,7 @@ app.post('/api/export-pdf', async (req, res) => {
         color: isSection ? rgb(0.2, 0.2, 0.6) : rgb(0, 0, 0),
       });
       
-      y -= (isSection ? 20 : 15);
+      y -= (isSection ? 25 : 18);
     }
     
     // Serialize and send
@@ -69,12 +138,25 @@ app.post('/api/export-pdf', async (req, res) => {
     res.status(500).json({ error: 'PDF generation failed' });
   }
 });
+
+// ==================== PRODUCTION CONFIG ====================
+
 if (process.env.NODE_ENV === 'production') {
-  // Serve frontend build
-  app.use(express.static(path.join(__dirname, '../frontend/build')));
+  // Serve static frontend build
+  app.use(express.static(path.resolve(__dirname, '../frontend/build')));
   
   // Handle React routing
   app.get('*', (req, res) => {
-    res.sendFile(path.join(__dirname, '../frontend/build/index.html'));
+    res.sendFile(path.resolve(__dirname, '../frontend/build/index.html'));
   });
 }
+
+// ==================== START SERVER ====================
+
+app.listen(PORT, () => {
+  console.log(`🚀 Server running in ${process.env.NODE_ENV || 'development'} mode`);
+  console.log(`✅ Health check: http://localhost:${PORT}/api/health`);
+  console.log(`✅ Frontend: ${process.env.NODE_ENV === 'production' 
+    ? 'Serving production build' 
+    : 'http://localhost:3000'}`);
+});
