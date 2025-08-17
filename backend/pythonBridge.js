@@ -1,13 +1,7 @@
-// FinSight/backend/pythonBridge.js
+// backend/pythonBridge.js
 const { spawn } = require('child_process');
 const path = require('path');
 
-/**
- * Execute Python script with arguments
- * @param {string} scriptPath - Relative path to Python script
- * @param {string[]} args - Array of arguments
- * @returns {Promise<Object>} - Parsed JSON output from Python
- */
 function runPythonScript(scriptPath, args = []) {
   return new Promise((resolve, reject) => {
     // Resolve absolute path for reliability
@@ -39,7 +33,7 @@ function runPythonScript(scriptPath, args = []) {
       try {
         // Parse JSON output from Python
         const result = JSON.parse(output);
-        console.log(`✅ Python output: ${Object.keys(result).join(', ')}`);
+        console.log(`✅ Python output received`);
         resolve(result);
       } catch (parseError) {
         const errorMsg = `❌ Failed to parse Python output: ${parseError.message}\nOutput: ${output}`;
