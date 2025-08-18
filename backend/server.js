@@ -111,3 +111,8 @@ app.listen(PORT, () => {
   console.log(`🚀 Server running in ${process.env.NODE_ENV || 'development'} mode on port ${PORT}`);
   console.log(`✅ Health endpoint: /api/health`);
 });
+// In production section
+app.use(express.static(path.join(__dirname, '../../frontend/build')));
+app.get('*', (req, res) => {
+  res.sendFile(path.join(__dirname, '../../frontend/build/index.html'));
+});
