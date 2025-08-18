@@ -1,50 +1,29 @@
-# FinSight\genai_core\report_generator.py
 import os
-import openai
-from dotenv import load_dotenv
-from datetime import datetime
+import sys
 
-# Load environment variables
-load_dotenv(os.path.join(os.path.dirname(__file__), '..', '.env'))
-openai.api_key = os.getenv("OPENAI_API_KEY")
-
-def generate_financial_report(ticker="AAPL", sentiment="Bullish"):
-    """
-    LIGHTWEIGHT REPORT GENERATOR
-    Uses only OpenAI API - no external dependencies
-    """
+def main():
+    print("=" * 50)
+    print("ENVIRONMENT VARIABLES TEST")
+    print("=" * 50)
+    
+    # Try to load .env file manually
     try:
-        # Create prompt with mock data
-        prompt = f"""Create a professional investment report for {ticker} stock. 
-        Context: Market sentiment is {sentiment}. 
-        Structure:
-        1. EXECUTIVE SUMMARY
-        2. TECHNICAL ANALYSIS 
-        3. RISK ASSESSMENT
-        4. RECOMMENDATION
-        Use professional financial language."""
-        
-        # Call OpenAI API
-        response = openai.ChatCompletion.create(
-            model="gpt-4-turbo",
-            messages=[{"role": "user", "content": prompt}],
-            temperature=0.3,
-            max_tokens=300
-        )
-        
-        # Save report
-        report = response.choices[0].message['content'].strip()
-        today = datetime.now().strftime("%Y%m%d")
-        with open(f"../data_processing/{ticker}_report_{today}.txt", 'w') as f:
-            f.write(report)
-            
-        print(f"✅ Report generated successfully!")
-        return report
-        
-    except Exception as e:
-        print(f"❌ Error: {str(e)}")
-        return "Report generation failed."
+        with open('.env', 'r') as f:
+            for line in f:
+                if '=' in line and not line.startswith('#'):
+                    key, value = line.strip().split('=', 1)
+                    os.environ[key] = value
+                    print(f"Loaded from .env: {key}={value[:4]}...")
+    except FileNotFoundError:
+        print(".env file not found")
+    
+    # Check variables
+    print(f"\nPORT: {os.getenv('PORT', 'Not found')}")
+    print(f"NODE_ENV: {os.getenv('NODE_ENV', 'Not found')}")
+    print(f"ALPHA_VANTAGE_KEY: {os.getenv('ALPHA_VANTAGE_KEY', 'Not found')}")
+    print(f"OPENAI_API_KEY: {os.getenv('OPENAI_API_KEY', 'Not found')}")
+    
+    print("=" * 50)
 
-# Test run
 if __name__ == "__main__":
-    generate_financial_report()
+    main()
